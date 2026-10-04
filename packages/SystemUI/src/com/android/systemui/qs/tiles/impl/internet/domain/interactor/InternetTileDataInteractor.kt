@@ -292,8 +292,10 @@ constructor(
             }
         }
 
-    override fun availability(user: UserHandle): Flow<Boolean> =
-        flowOf(!QsSplitInternetTile.isEnabled)
+    // EvoX: the combined Internet tile stays available regardless of the
+    // qs_split_internet_tile_rw rollout flag. AOSP makes this mutually exclusive
+    // with the separate wifi/cell tiles; we want all three available at once.
+    override fun availability(user: UserHandle): Flow<Boolean> = flowOf(true)
 
     private companion object {
         val NOT_CONNECTED_NETWORKS_UNAVAILABLE =

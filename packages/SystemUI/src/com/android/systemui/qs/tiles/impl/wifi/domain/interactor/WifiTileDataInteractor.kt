@@ -109,7 +109,9 @@ constructor(
 
     override fun availability(user: UserHandle): Flow<Boolean> = flowOf(isAvailable())
 
-    fun isAvailable(): Boolean = QsSplitInternetTile.isEnabled
+    // EvoX: keep the standalone Wifi tile available even when the combined
+    // Internet tile is enabled, so both can coexist.
+    fun isAvailable(): Boolean = true
 
     private companion object {
         fun removeDoubleQuotes(string: String?): String? {
