@@ -207,7 +207,10 @@ constructor(
         return flowOf(isTileSupported() && user.identifier == userRepository.mainUserId)
     }
 
+    // EvoX: the standalone Mobile data tile no longer depends on the
+    // qs_split_internet_tile_rw rollout flag, so it stays available alongside
+    // the combined Internet tile. Hardware capability is still required.
     fun isTileSupported(): Boolean {
-        return QsSplitInternetTile.isEnabled && connectivityConstants.hasDataCapabilities
+        return connectivityConstants.hasDataCapabilities
     }
 }

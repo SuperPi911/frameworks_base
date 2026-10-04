@@ -84,8 +84,10 @@
     </string>
 
     <!-- The default tiles to display in QuickSettings after the internet tile split-->
+    <!-- EvoX: added "internet" so the combined Internet tile is present alongside the
+         standalone wifi and cell tiles instead of being mutually exclusive with them. -->
     <string name="quick_settings_tiles_default_split" translatable="false">
-        wifi,bt,cell,cast,dnd,wallet,airplane,rotation,flashlight,battery,alarm,controls,screenrecord
+        internet,wifi,bt,cell,cast,dnd,wallet,airplane,rotation,flashlight,battery,alarm,controls,screenrecord
     </string>
 
     <!-- The default large tiles in Quick Settings after the internet tile split -->

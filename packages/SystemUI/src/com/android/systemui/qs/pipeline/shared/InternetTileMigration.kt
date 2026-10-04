@@ -54,9 +54,22 @@ object InternetTileMigration {
     }
 
     private fun Collection<TileSpec>.migrateInternetTileInternal(): List<TileSpec> {
-        return map(flagCheckedMap)
+        // EvoX: intentionally a no-op.
+        //
+        // Upstream rewrites the persisted tile spec here (internet <-> wifi) so that
+        // only one of the two connectivity tiles ever exists. That rewrite would
+        // collapse the standalone wifi spec into the combined internet spec (or the
+        // reverse) and silently drop one of the tiles from Quick Settings, even
+        // though both are reported as available.
+        //
+        // Leaving the spec untouched lets the internet, wifi and cell specs coexist
+        // independently, which is what Evolution X exposes to the user.
+        return this.toList()
     }
 
+    // Kept for reference/upstream-merge clarity; no longer referenced now that
+    // migrateInternetTileInternal() is a no-op. See the comment there.
+    @Suppress("unused")
     private inline val flagCheckedMap: (TileSpec) -> TileSpec
         get() =
             if (QsSplitInternetTile.isEnabled) {
@@ -65,10 +78,12 @@ object InternetTileMigration {
                 ::fromWifiToInternet
             }
 
+    @Suppress("unused")
     private fun fromInternetToWifi(tile: TileSpec): TileSpec {
         return if (tile == internetTileSpec) wifiTileSpec else tile
     }
 
+    @Suppress("unused")
     private fun fromWifiToInternet(tile: TileSpec): TileSpec {
         return if (tile == wifiTileSpec) internetTileSpec else tile
     }
