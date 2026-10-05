@@ -91,7 +91,12 @@
     </string>
 
     <!-- The default large tiles in Quick Settings after the internet tile split -->
+    <!-- EvoX: added "internet" so the combined Internet tile renders as a large tile again.
+         DefaultLargeTilesRepositoryImpl only offers the split list while the flag is active, and
+         upstream's copy of that list omits internet, so the tile was available but never given the
+         large-tile slot. Kept in step with the non-split branch of that repository. -->
     <string-array name="quick_settings_large_tiles_default_split" translatable="false">
+        <item>internet</item>
         <item>wifi</item>
         <item>bt</item>
         <item>cell</item>

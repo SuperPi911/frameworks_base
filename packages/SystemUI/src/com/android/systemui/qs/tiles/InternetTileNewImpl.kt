@@ -85,7 +85,14 @@ constructor(
     }
 
     override fun isAvailable(): Boolean {
-        return !QsSplitInternetTile.isEnabled
+        // EvoX: the combined Internet tile stays available regardless of the
+        // qs_split_internet_tile_rw rollout flag.
+        //
+        // Upstream hides this tile at the Tile layer whenever the split is active, which is what
+        // actually removed it from Quick Settings — patching only the interactor's availability()
+        // was not enough, because a Tile whose isAvailable() is false is never instantiated into
+        // the QS host at all.
+        return true
     }
 
     override fun getTileLabel(): CharSequence =
