@@ -87,6 +87,13 @@ public final class AxDialogBlurController {
     private int mGeneration;
 
     public static AxDialogBlurController create(Window window, DecorView decor, boolean isDialog) {
+        // EvoX: never attach the dialog-blur controller to an input-method window.
+        // The controller runs updateBackgrounds() (a recursive view-tree walk) on every
+        // pre-draw; on the keyboard window that stalls the IME and desyncs its text
+        // state, which makes deleted characters get re-committed.
+        if (window.getAttributes().type == WindowManager.LayoutParams.TYPE_INPUT_METHOD) {
+            return null;
+        }
         if ((!isDialog && !window.isFloating()
                 && !(window.getCallback() instanceof AlertActivity))
                 || !isSupported(window.getContext())) {
@@ -211,7 +218,7 @@ public final class AxDialogBlurController {
         final boolean enabled = mCrossWindowBlurEnabled
                 && Settings.Global.getInt(mResolver, Settings.Global.DISABLE_WINDOW_BLURS,
                         defaultDisabled) == 0
-                && Settings.System.getInt(mResolver, Settings.System.DIALOG_BLUR_ENABLED, 1) != 0;
+                && Settings.System.getInt(mResolver, Settings.System.DIALOG_BLUR_ENABLED, 0) != 0;
         final float maxRadius = MAX_BLUR_RADIUS_DP
                 * mContext.getResources().getDisplayMetrics().density;
         final float radius = Settings.Secure.getFloat(mResolver, BLUR_RADIUS, maxRadius);
