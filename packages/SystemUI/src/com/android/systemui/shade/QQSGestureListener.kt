@@ -20,6 +20,7 @@ import android.content.Context
 import android.database.ContentObserver
 import android.os.PowerManager
 import android.view.GestureDetector
+import android.view.InputDevice
 import android.view.MotionEvent
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.plugins.FalsingManager
@@ -67,6 +68,35 @@ class QQSGestureListener @Inject constructor(
     override fun onDown(e: MotionEvent): Boolean {
         tapStartedOnSleepSurface = isSleepSurface(e)
         return false
+    }
+
+    override fun onDoubleTapEvent(e: MotionEvent): Boolean {
+        // Mouse clicks must never trigger double-tap-to-sleep: on a connected/desktop display the
+        // user drives the shade with a mouse, and a fast double click (e.g. on a notification or
+        // a QS tile) would otherwise put the whole device to sleep.
+        if (e.isFromSource(InputDevice.SOURCE_MOUSE)) {
+            doubleTapStartedOnSleepSurface = false
+            tapStartedOnSleepSurface = false
+            return false
+        }
+        doubleTapStartedOnSleepSurface =
+            doubleTapStartedOnSleepSurface && isSleepSurface(e)
+        if (e.actionMasked == MotionEvent.ACTION_CANCEL) {
+            doubleTapStartedOnSleepSurface = false
+            tapStartedOnSleepSurface = false
+            return false
+        }
+        if (e.actionMasked != MotionEvent.ACTION_UP) {
+            return false
+        }
+
+        val shouldSleep = doubleTapStartedOnSleepSurface && tapStartedOnSleepSurface &&
+            !falsingManager.isFalseDoubleTap
+        doubleTapStartedOnSleepSurface = false
+        if (shouldSleep) {
+            powerManager.goToSleep(e.eventTime)
+        }
+        return shouldSleep
     }
 
     override fun onSingleTapUp(e: MotionEvent): Boolean {

@@ -21,6 +21,7 @@ import android.annotation.SuppressLint
 import android.companion.virtualdevice.flags.Flags
 import android.content.Context
 import android.util.AttributeSet
+import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -70,6 +71,9 @@ open class TouchHandlingView(
 
     var listener: Listener? = null
 
+    /** Whether the most recently dispatched touch event came from a mouse. */
+    private var isLastEventFromMouse: Boolean = false
+
     private val interactionHandler: TouchHandlingViewInteractionHandler by lazy {
         TouchHandlingViewInteractionHandler(
             context = context,
@@ -88,7 +92,12 @@ open class TouchHandlingView(
                 listener?.onSingleTapDetected(this@TouchHandlingView, x = x, y = y)
             },
             onDoubleTapDetected = {
-                if (doubleTapToSleep()) listener?.onDoubleTapDetected(this@TouchHandlingView)
+                // Mouse clicks must never trigger double-tap-to-sleep. When the lockscreen is shown
+                // on a connected/desktop display the user drives it with a mouse, and a fast double
+                // click would otherwise put the whole device to sleep.
+                if (doubleTapToSleep() && !isLastEventFromMouse) {
+                    listener?.onDoubleTapDetected(this@TouchHandlingView)
+                }
             },
             longPressDuration = longPressDuration,
             allowedTouchSlop = allowedTouchSlop,
@@ -111,6 +120,7 @@ open class TouchHandlingView(
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        isLastEventFromMouse = event.isFromSource(InputDevice.SOURCE_MOUSE)
         return TouchLogger.logDispatchTouch("long_press", event, super.dispatchTouchEvent(event))
     }
 
