@@ -2777,9 +2777,73 @@ class DesktopTasksController(
             return
         }
 
+        val deskId = getOrCreateDefaultDeskId(displayId, userId)
+        if (deskId != null) {
+            launchIntentInDesk(pendingIntent, options, displayId, userId, deskId)
+            return
+        }
+
+        // No desk root is available. This happens when the display was not pre-warmed with a desk
+        // root, for example because it was not considered desktop-mode eligible when it was added,
+        // or because the warm-up request has not completed yet. Previously this method simply
+        // returned here, which made tapping an app in the taskbar a silent no-op.
+        logW(
+            "startLaunchIntentTransition: no default desk in displayId=%d for userId=%d",
+            displayId,
+            userId,
+        )
+        if (
+            !desksController.canCreateDeskInDisplay(
+                displayId,
+                userId,
+                enforceDeskLimit = false,
+            )
+        ) {
+            // The display does not support desks at all. Launch the app directly so the tap is
+            // not lost.
+            launchIntentDirectlyOnDisplay(pendingIntent, options, displayId)
+            return
+        }
+
+        // Create the desk and then launch into it, but do not wait indefinitely for the desk root
+        // to appear: if it is not ready in time, launch the app directly so it is still shown.
+        var launched = false
+        val fallback =
+            Runnable {
+                if (!launched) {
+                    launched = true
+                    logW(
+                        "startLaunchIntentTransition: desk not ready in displayId=%d, " +
+                            "launching directly",
+                        displayId,
+                    )
+                    launchIntentDirectlyOnDisplay(pendingIntent, options, displayId)
+                }
+            }
+        mainExecutor.executeDelayed(fallback, DESK_CREATION_TIMEOUT_MS)
+        desksController.createDesk(displayId, userId, enforceDeskLimit = false) { createdDeskId ->
+            if (!launched) {
+                launched = true
+                launchIntentInDesk(pendingIntent, options, displayId, userId, createdDeskId)
+            }
+        }
+    }
+
+    /** Launches [pendingIntent] as a freeform task inside [deskId] on [displayId]. */
+    private fun launchIntentInDesk(
+        pendingIntent: PendingIntent,
+        options: Bundle,
+        displayId: Int,
+        userId: Int,
+        deskId: Int,
+    ) {
         val repository = userRepositories.getProfile(userId)
         val wct = WindowContainerTransaction()
-        val displayLayout = displayController.getDisplayLayout(displayId) ?: return
+        val displayLayout = displayController.getDisplayLayout(displayId)
+        if (displayLayout == null) {
+            logW("launchIntentInDesk: no display layout for displayId=%d", displayId)
+            return
+        }
         val rememberedBounds =
             calculateRememberedBounds(
                 repository,
@@ -2790,7 +2854,6 @@ class DesktopTasksController(
                 /* taskInfo= */ null,
             )
         val bounds = rememberedBounds ?: calculateDefaultDesktopTaskBounds(displayLayout)
-        val deskId = getOrCreateDefaultDeskId(displayId, userId) ?: return
         val stableBounds = Rect().also { displayLayout.getStableBounds(it) }
         cascadeWindow(
             context,
@@ -2825,6 +2888,32 @@ class DesktopTasksController(
             requestedTaskBounds = ops.getLaunchBounds(),
             flexibleLaunchSize = ops.getFlexibleLaunchSize(),
         )
+    }
+
+    /**
+     * Launches [pendingIntent] directly on [displayId] as a freeform task, without a desk.
+     *
+     * This is a fallback used when no desk can be created for the display, so that launching an app
+     * from the taskbar is never a silent no-op.
+     */
+    private fun launchIntentDirectlyOnDisplay(
+        pendingIntent: PendingIntent,
+        options: Bundle,
+        displayId: Int,
+    ) {
+        val displayLayout = displayController.getDisplayLayout(displayId)
+        val wct = WindowContainerTransaction()
+        val ops =
+            ActivityOptions.fromBundle(options).apply {
+                launchWindowingMode = WINDOWING_MODE_FREEFORM
+                pendingIntentBackgroundActivityStartMode =
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS
+                displayLayout?.let { launchBounds = calculateDefaultDesktopTaskBounds(it) }
+                launchDisplayId = displayId
+                flexibleLaunchSize = true
+            }
+        wct.sendPendingIntent(pendingIntent, null, ops.toBundle())
+        transitions.startTransition(TRANSIT_OPEN, wct, null)
     }
 
     /**
@@ -7113,6 +7202,12 @@ class DesktopTasksController(
         private val APP_HANDLE_DRAG_CUJ_TIMEOUT_MS: Long = TimeUnit.SECONDS.toMillis(10L)
 
         private const val TAG = "DesktopTasksController"
+
+        /**
+         * Maximum time to wait for a desk root to be created before falling back to launching an
+         * app directly on the display.
+         */
+        private val DESK_CREATION_TIMEOUT_MS: Long = TimeUnit.MILLISECONDS.toMillis(500L)
 
         private fun DesktopTaskToFrontReason.toUnminimizeReason(): UnminimizeReason =
             when (this) {
