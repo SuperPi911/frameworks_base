@@ -276,6 +276,13 @@
 
     <!-- Permission to start Launcher's widget picker activity. -->
     <uses-permission android:name="android.permission.START_WIDGET_PICKER_ACTIVITY" />
+    <!-- The Launcher's WidgetPickerActivity (ACTION_PICK) is guarded by the Launcher's own
+         package-scoped signature|privileged permission. On builds that ship a prebuilt Launcher
+         (e.g. NexusLauncherRelease, signed with its own key rather than the platform key) the
+         platform signature check fails, so SystemUI must request the Launcher's permission
+         explicitly and be granted it via the privapp allowlist (see
+         frameworks/base/data/etc/com.android.systemui.xml). -->
+    <uses-permission android:name="com.google.android.apps.nexuslauncher.permission.START_WIDGET_PICKER_ACTIVITY" />
 
     <uses-permission android:name="android.permission.MODIFY_THEME_OVERLAY" />
 

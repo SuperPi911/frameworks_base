@@ -106,5 +106,10 @@
         <permission name="android.permission.SET_UNRESTRICTED_GESTURE_EXCLUSION" />
         <permission name="android.permission.WRITE_APN_SETTINGS" />
         <permission name="android.permission.ACCESS_NOTIFICATIONS"/>
+        <!-- Allow SystemUI to launch the Launcher's widget picker (used by the glanceable
+             hub "Add widget" flow). The prebuilt Launcher declares this as
+             signature|privileged but is signed with a different key than the platform, so
+             SystemUI needs an explicit privileged grant. -->
+        <permission name="com.google.android.apps.nexuslauncher.permission.START_WIDGET_PICKER_ACTIVITY"/>
     </privapp-permissions>
 </permissions>
