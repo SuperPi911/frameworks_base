@@ -87,10 +87,15 @@ public final class AxDialogBlurController {
     private int mGeneration;
 
     public static AxDialogBlurController create(Window window, DecorView decor, boolean isDialog) {
-        // EvoX: never attach the dialog-blur controller to an input-method window.
-        // The controller runs updateBackgrounds() (a recursive view-tree walk) on every
-        // pre-draw; on the keyboard window that stalls the IME and desyncs its text
-        // state, which makes deleted characters get re-committed.
+        // EvoX: the input method window is not a dialog. SoftInputWindow happens to extend
+        // Dialog and Theme.InputMethod inherits the floating panel theme, so without this
+        // guard the keyboard would get a blur controller. There is nothing meaningful to blur
+        // behind an opaque keyboard, and the controller's per-frame updateBackgrounds() walk
+        // plus the renderers it installs on the IME's own views make the IME window translucent
+        // and repeatedly invalidate its content. That perturbs the IME's drawing state, which
+        // desyncs text input (deleted characters get re-committed). Keep dialog and toast blur
+        // fully enabled for real dialogs; only the keyboard window is excluded.
+        // TYPE_INPUT_METHOD_DIALOG is a genuine dialog shown by the IME and is left alone.
         if (window.getAttributes().type == WindowManager.LayoutParams.TYPE_INPUT_METHOD) {
             return null;
         }
@@ -218,7 +223,7 @@ public final class AxDialogBlurController {
         final boolean enabled = mCrossWindowBlurEnabled
                 && Settings.Global.getInt(mResolver, Settings.Global.DISABLE_WINDOW_BLURS,
                         defaultDisabled) == 0
-                && Settings.System.getInt(mResolver, Settings.System.DIALOG_BLUR_ENABLED, 0) != 0;
+                && Settings.System.getInt(mResolver, Settings.System.DIALOG_BLUR_ENABLED, 1) != 0;
         final float maxRadius = MAX_BLUR_RADIUS_DP
                 * mContext.getResources().getDisplayMetrics().density;
         final float radius = Settings.Secure.getFloat(mResolver, BLUR_RADIUS, maxRadius);
@@ -262,7 +267,12 @@ public final class AxDialogBlurController {
                 renderer.mGeneration = mGeneration;
                 return;
             }
-            if (background.getOpacity() != PixelFormat.TRANSPARENT) {
+            // A fully transparent background draws nothing, so it must not claim a blur
+            // region: that would only mark the window translucent and force it off the
+            // opaque path for no visual gain. GradientDrawable in particular reports
+            // TRANSLUCENT for alpha 0, hence the explicit alpha check.
+            if (background.getOpacity() != PixelFormat.TRANSPARENT
+                    && background.getAlpha() != 0) {
                 if (surfaceDrawable(background) != null) {
                     renderer = new BackgroundRenderer(view, background);
                     mBackgrounds.put(view, renderer);
