@@ -876,6 +876,12 @@ public final class NotificationPanelViewController implements
                 new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDoubleTap(MotionEvent e) {
+                // Mouse clicks must never trigger double-tap-to-sleep: on a connected/desktop
+                // display the shade is driven with a mouse, and a fast double click (e.g. on a
+                // notification or a QS tile) would otherwise put the whole device to sleep.
+                if (e.isFromSource(InputDevice.SOURCE_MOUSE)) {
+                    return true;
+                }
                 if (mTripleTapToFreeformEnabled) {
                     // Wait for triple press otherwise go to sleep
                     mTripleTapArmed = true;
