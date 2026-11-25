@@ -70,35 +70,6 @@ class QQSGestureListener @Inject constructor(
         return false
     }
 
-    override fun onDoubleTapEvent(e: MotionEvent): Boolean {
-        // Mouse clicks must never trigger double-tap-to-sleep: on a connected/desktop display the
-        // user drives the shade with a mouse, and a fast double click (e.g. on a notification or
-        // a QS tile) would otherwise put the whole device to sleep.
-        if (e.isFromSource(InputDevice.SOURCE_MOUSE)) {
-            doubleTapStartedOnSleepSurface = false
-            tapStartedOnSleepSurface = false
-            return false
-        }
-        doubleTapStartedOnSleepSurface =
-            doubleTapStartedOnSleepSurface && isSleepSurface(e)
-        if (e.actionMasked == MotionEvent.ACTION_CANCEL) {
-            doubleTapStartedOnSleepSurface = false
-            tapStartedOnSleepSurface = false
-            return false
-        }
-        if (e.actionMasked != MotionEvent.ACTION_UP) {
-            return false
-        }
-
-        val shouldSleep = doubleTapStartedOnSleepSurface && tapStartedOnSleepSurface &&
-            !falsingManager.isFalseDoubleTap
-        doubleTapStartedOnSleepSurface = false
-        if (shouldSleep) {
-            powerManager.goToSleep(e.eventTime)
-        }
-        return shouldSleep
-    }
-
     override fun onSingleTapUp(e: MotionEvent): Boolean {
         tapStartedOnSleepSurface = tapStartedOnSleepSurface && isSleepSurface(e)
         return false
@@ -111,6 +82,14 @@ class QQSGestureListener @Inject constructor(
     }
 
     override fun onDoubleTapEvent(e: MotionEvent): Boolean {
+        // Mouse clicks must never trigger double-tap-to-sleep: on a connected/desktop display the
+        // user drives the shade with a mouse, and a fast double click (e.g. on a notification or
+        // a QS tile) would otherwise put the whole device to sleep.
+        if (e.isFromSource(InputDevice.SOURCE_MOUSE)) {
+            doubleTapStartedOnSleepSurface = false
+            tapStartedOnSleepSurface = false
+            return false
+        }
         doubleTapStartedOnSleepSurface =
             doubleTapStartedOnSleepSurface && isSleepSurface(e)
         if (e.actionMasked == MotionEvent.ACTION_CANCEL) {
